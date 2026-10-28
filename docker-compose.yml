@@ -1,0 +1,8 @@
+services:
+  metrica-liga:
+    build: .
+    image: metrica-liga:latest
+    container_name: metrica-liga
+    ports:
+      - "4444:80"   # http://<ip-de-la-maquina>:4444
+    restart: unless-stopped

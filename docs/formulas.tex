@@ -1,0 +1,97 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[spanish]{babel}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage[margin=2.5cm]{geometry}
+
+\title{Métrica Liga\\[2pt]\large Cálculo de la valoración de presencias}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+Este documento describe cómo se calcula la valoración económica de la presencia de marca en las retransmisiones. Las fórmulas se han verificado contra la exportación de Analítica de IKLAN de la jornada 1: la réplica coincide en las 440 filas nacionales valoradas y en los totales de cada partido.
+
+\section*{Datos de entrada}
+
+Para cada presencia (anunciante, partido, feed y soporte):
+
+\begin{itemize}
+  \item $s$: segundos de la presencia.
+  \begin{itemize}
+    \item Vallas (postplay): columna \textit{Output Seconds LIVE}, que en la plataforma se muestra como \textit{Emitido TV}. Como alternativa configurable, \textit{Broad TM Time} (\textit{Emitido TM}).
+    \item Momentums: duración indicada en la tabla \textit{MOMENTUMS} del postplay, incluidas las repeticiones.
+    \item Estáticos: columna \textit{Tiempo en segundos} del Excel de estáticos.
+  \end{itemize}
+  \item $AM_h$: AM\,\% hogar de Kantar para el partido, el canal y el público ($+16$ o $+4$).
+  \item $A_h$: audiencia hogar de Kantar.
+  \item $F$: factor total del canal (tabla Canales, \textit{F. Total}): $3{,}2$ en canales de pago y $1{,}22$ en abierto.
+  \item $C$: coste de un GRP en el canal (tabla Canales, \textit{C. GRP Nacional}).
+  \item $k$: coeficiente de tamaño del soporte (tabla Soportes). Valla UTV: $k = 0{,}25$.
+\end{itemize}
+
+\section*{Fórmulas}
+
+\begin{align}
+AM_t &= \operatorname{redondeo}\left(AM_h \cdot F,\ 3\right) \\[4pt]
+A_t  &= A_h \cdot F \\[4pt]
+GRP  &= AM_t \cdot \frac{s}{20} \\[4pt]
+V    &= GRP \cdot C \cdot k
+\end{align}
+
+donde $AM_t$ es el AM\,\% total, $A_t$ la audiencia total, $GRP$ los GRPs y $V$ la valoración económica en euros. Combinando las cuatro:
+
+\[
+V = \operatorname{redondeo}\left(AM_h \cdot F,\ 3\right) \cdot \frac{s}{20} \cdot C \cdot k
+\]
+
+El divisor $20$ convierte segundos en anuncios estándar de 20 segundos, que es la unidad en la que se expresa el coste del GRP.
+
+\section*{Reglas}
+
+\begin{enumerate}
+  \item Solo se valora el feed \textbf{Nacional}, porque Kantar mide audiencias en España. Los feeds internacionales (ROW, Europa, USA, LATAM, MENA, PRC+SEA) registran segundos sin valoración.
+  \item El cálculo se hace por separado para el público $+16$ y el público $+4$.
+  \item Si un partido se emite en dos canales, cada presencia se valora en ambos y los importes se suman.
+  \item El AM\,\% total se redondea a tres decimales antes de calcular los GRPs.
+\end{enumerate}
+
+\section*{Ejemplo}
+
+HAIER, Alavés -- Getafe, jornada 1, feed Nacional, valla UTV, canal DAZN LaLiga, público $+16$:
+\[
+s = 55, \quad AM_h = 0{,}337, \quad F = 3{,}2, \quad C = 2706, \quad k = 0{,}25
+\]
+\begin{align*}
+AM_t &= \operatorname{redondeo}(0{,}337 \cdot 3{,}2,\ 3) = 1{,}078 \\
+GRP  &= 1{,}078 \cdot \tfrac{55}{20} = 2{,}9645 \\
+V    &= 2{,}9645 \cdot 2706 \cdot 0{,}25 = 2005{,}48 \text{ €}
+\end{align*}
+
+\section*{Verificación: jornada 1}
+
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Partido & Valoración $+16$ (€) \\
+\midrule
+Alavés -- Getafe            & 421.116,69 \\
+At. Madrid -- Málaga        & 708.394,43 \\
+Celta -- Osasuna            & 171.731,78 \\
+Espanyol -- Levante         & 304.540,75 \\
+Racing -- Villarreal        & 369.522,54 \\
+Sevilla -- Rayo Vallecano   & 332.618,66 \\
+Valencia -- Betis           & 952.270,15 \\
+\midrule
+\textbf{Total}              & \textbf{3.260.195,01} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Total público $+4$: 3.053.518,60~€. Deportivo -- Elche no se valora porque no tiene postplay nacional.
+
+\end{document}

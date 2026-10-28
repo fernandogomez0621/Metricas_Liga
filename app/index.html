@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Métrica Liga</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="css/app.css">
+<style>body{margin:0}</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" aria-label="Menú principal">
+    <div class="logo">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" class="logo-bg"/><path class="logo-bars" d="M9 22v-5M14 22v-9M19 22v-6M24 22V9"/></svg>
+      <div><b>Métrica Liga</b><span>Presencia de marca en TV</span></div>
+    </div>
+    <div class="season">
+      <label for="season">Temporada</label>
+      <select id="season"><option>2026 / 2027</option></select>
+    </div>
+    <nav class="nav">
+      <span class="nav-label">Módulos</span>
+      <button data-mode="int" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h16M8 15l4-4 3 3 5-6"/></svg>Investigación</button>
+      <button data-mode="cli" aria-current="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Vista cliente</button>
+    </nav>
+    <button class="side-foot" id="b-options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3M4.9 4.9l2.1 2.1m10 10l2.1 2.1M4.9 19.1L7 17m10-10l2.1-2.1"/></svg>Opciones del prototipo</button>
+  </aside>
+
+  <div class="content">
+    <header class="topbar">
+      <h1 id="page-title">Investigación publicitaria</h1>
+      <div class="top-actions" id="int-actions">
+        <button class="btn" id="b-insitu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>In-Situ</button>
+        <button class="btn" id="b-validar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>Validar jornada</button>
+        <button class="btn primary" id="b-upload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0l-5 5m5-5l5 5M4 20h16"/></svg>Subir Excel</button>
+      </div>
+      <div class="top-actions" id="cli-actions" hidden>
+        <label for="viewas" class="inline-select">Ver como <select id="viewas"></select></label>
+      </div>
+    </header>
+    <nav class="tabs" role="tablist" id="tablist" aria-label="Secciones"></nav>
+    <main id="main"><p class="loading">Cargando…</p></main>
+  </div>
+</div>
+<div id="modal-root"></div>
+
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/katex.min.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

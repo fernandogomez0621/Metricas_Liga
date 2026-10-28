@@ -1,0 +1,11 @@
+{
+  "name": "metricas-liga",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Métrica Liga: carga de postplays, estáticos y audiencias Kantar, y valoración de la presencia de marca por jornada.",
+  "type": "module",
+  "scripts": {
+    "test": "node tests/calc.test.mjs",
+    "serve": "python3 -m http.server 4444 --directory app"
+  }
+}
