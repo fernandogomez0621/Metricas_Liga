@@ -110,3 +110,89 @@ export function parseAudiencias(name, wb) {
   out.issues = uniq(out.issues);
   return out;
 }
+
+/* ------------------------------------------------------------------------------------------
+ * Audiencias Kantar en formato original (hoja "Programas"): filas por emisión con
+ * Título · Descripción ("LOCAL-VISITANTE") · Cadena · Fecha … y bloques por target
+ * (Ind. 4+, Ind. 16+, con y sin invitados) con AM(000), AM% y Cuota.
+ * Se usan los bloques "sin invitados" de Ind. 4+ e Ind. 16+.
+ * ------------------------------------------------------------------------------------------ */
+export function isKantarWorkbook(wb) {
+  const rows = rowsOf(wb).slice(0, 10).map(r => (r || []).map(norm));
+  return rows.some(r => r.includes(norm("Descripción")) && r.includes(norm("Cadena")) && r.includes(norm("AM(000)")));
+}
+
+/** Busca el partido del calendario a partir de "LOCAL-VISITANTE" (o local y visitante sueltos). */
+export function matchPartido(desc, jornada, local, visit) {
+  let L = local, V = visit;
+  if (!L || !V) {
+    const parts = String(desc || "").split("-").map(x => x.trim()).filter(Boolean);
+    for (let i = 1; i < parts.length && !(L && V && findPartido(L, V, null)); i++) { L = parts.slice(0, i).join("-"); V = parts.slice(i).join("-"); }
+  }
+  const p = findPartido(L, V, jornada) || findPartido(L, V, null);
+  return { p, local: L, visit: V, otraJornada: p && jornada && p.jornada !== jornada };
+}
+
+const fmtFecha = v => {
+  if (v == null) return null;
+  if (typeof v === "number") { const d = XLSX().SSF.parse_date_code(v); return d ? `${String(d.d).padStart(2, "0")}-${String(d.m).padStart(2, "0")}-${d.y}` : String(v); }
+  const iso = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}-${iso[2]}-${iso[1]}`;
+  return String(v).replace(/\//g, "-").slice(0, 10);
+};
+
+export function parseKantar(name, wb, ambito = "ESPAÑA") {
+  const out = { rows: [], issues: [] };
+  const rows = rowsOf(wb);
+  const hi = rows.findIndex((r, i) => i < 10 && (r || []).map(norm).includes(norm("Descripción")));
+  if (hi < 0) { out.issues.push("No encuentro la fila de títulos (Título, Descripción, Cadena…)."); return out; }
+  const H = rows[hi].map(norm), T = (rows[hi - 1] || []).map(v => String(v ?? "").trim()), INV = (rows[hi - 2] || []).map(v => String(v ?? "").trim().toLowerCase());
+  const col = k => H.indexOf(norm(k));
+  const iDesc = col("Descripción"), iCad = col("Cadena"), iFecha = col("Fecha"), iTit = col("Título");
+  const block = target => {
+    const idx = k => H.findIndex((h, i) => h === norm(k) && T[i] === target && (!INV[i] || INV[i] === "sin invitados"));
+    return { am000: idx("AM(000)"), am: idx("AM%"), cuota: idx("Cuota") };
+  };
+  const B = { 4: block("Ind. 4+"), 16: block("Ind. 16+") };
+  if (B[4].am < 0 && B[16].am < 0) { out.issues.push("No encuentro los bloques Ind. 4+ / Ind. 16+ con AM%."); return out; }
+  const jm = name.match(/_J(\d+)_/i); const jornada = jm ? +jm[1] : null;
+  for (let i = hi + 1; i < rows.length; i++) {
+    const r = rows[i] || []; const desc = clean(r[iDesc]);
+    if (!desc || norm(r[iTit]) === "TOTAL") continue;
+    const m = matchPartido(desc, jornada);
+    if (!m.p) { out.issues.push(`Fila ${i + 1}: el partido "${desc}" no está en el calendario (pestaña Partidos). Añádelo allí y vuelve a cargar el archivo.`); continue; }
+    if (m.otraJornada) out.issues.push(`Fila ${i + 1}: "${desc}" no es de la jornada ${jornada}; se asigna a su jornada del calendario (J${m.p.jornada})`);
+    const canal = clean(r[iCad]);
+    if (ambito === "ESPAÑA" && !canalOf(canal)) out.issues.push(`Canal "${canal}" no está en la tabla Canales: sus filas no se valoran`);
+    for (const pub of [4, 16]) {
+      const b = B[pub]; if (b.am < 0 || !isNum(r[b.am])) continue;
+      out.rows.push({ ambito, competicion: m.p.competicion, jornada: m.p.jornada, partido: m.p.partido, local: m.p.local, visitante: m.p.visitante,
+        fecha: fmtFecha(r[iFecha]) || m.p.fecha, canal, tipoCanal: canalOf(canal)?.tipo || null, publico: pub,
+        cuota: isNum(r[b.cuota]) ? r[b.cuota] : null, amHogar: r[b.am], audHogar: isNum(r[b.am000]) ? Math.round(r[b.am000] * 1000) : null,
+        origen: "Kantar Excel", archivo: name });
+    }
+  }
+  out.issues = uniq(out.issues);
+  return out;
+}
+
+/** Filas devueltas por la consulta SQL de audiencias (mismo contenido que el Excel de Kantar). */
+export function mapSqlAudiencias(sqlRows) {
+  const out = { rows: [], issues: [] };
+  const g = (r, k) => { const key = Object.keys(r).find(x => norm(x) === norm(k)); return key ? r[key] : null; };
+  for (const r of sqlRows) {
+    const m = matchPartido(g(r, "partido"), null, clean(g(r, "local")), clean(g(r, "visitante")));
+    if (!m.p) { out.issues.push(`El partido "${g(r, "partido")}" (${g(r, "fecha")}) no está en el calendario (pestaña Partidos). Añádelo allí y vuelve a consultar.`); continue; }
+    const canal = clean(g(r, "cadena"));
+    if (!canalOf(canal)) out.issues.push(`Canal "${canal}" no está en la tabla Canales: sus filas no se valoran`);
+    for (const pub of [4, 16]) {
+      const am = g(r, `Ind. ${pub}+ AM%`); if (!isNum(am)) continue;
+      const miles = g(r, `Ind. ${pub}+ AM(000)`);
+      out.rows.push({ ambito: "ESPAÑA", competicion: m.p.competicion, jornada: m.p.jornada, partido: m.p.partido, local: m.p.local, visitante: m.p.visitante,
+        fecha: fmtFecha(g(r, "fecha")) || m.p.fecha, canal, tipoCanal: canalOf(canal)?.tipo || null, publico: pub,
+        cuota: g(r, `Ind. ${pub}+ Cuota`), amHogar: am, audHogar: isNum(miles) ? Math.round(miles * 1000) : null, origen: "Base de datos", archivo: "SQL" });
+    }
+  }
+  out.issues = uniq(out.issues);
+  return out;
+}

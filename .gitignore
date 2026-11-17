@@ -5,3 +5,5 @@ docs/*.aux
 docs/*.out
 docs/*.synctex.gz
 .env
+__pycache__/
+*.pyc

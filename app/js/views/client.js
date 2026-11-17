@@ -6,9 +6,10 @@ import { canExport, exportXlsx } from "../exporter.js";
 import { feedGroup } from "../masters.js";
 import { analitica } from "../calc.js";
 
-const F = { grp: "NACIONAL", feed: "", anun: "", comp: "", jor: "", pub: "16", sop: "",
+// jor: null = automático (última jornada con datos del cliente); "" = todas; "n" = jornada concreta
+const F = { grp: "NACIONAL", feed: "", anun: "", comp: "", jor: null, pub: "16", sop: "",
   accGrp: "NACIONAL", accAnun: "", accSop: "", desde: "", hasta: "", accPub: "16" };
-export const resetClientFilters = () => { F.anun = ""; F.accAnun = ""; };
+export const resetClientFilters = () => { F.anun = ""; F.accAnun = ""; F.jor = null; };
 
 export function viewAsOptions(viewAs) {
   const anun = sortedValues(S.records.map(r => r.anunciante));
@@ -34,8 +35,10 @@ export function renderClient(main, viewAs) {
   const anunList = sortedValues(g1.map(r => r.anunciante));
   if (F.anun && !anunList.includes(F.anun)) F.anun = "";
   if (!F.anun && anunList.length === 1) F.anun = anunList[0];
-  const rows = g1.filter(r => (!F.feed || r.feed === F.feed) && (!F.anun || r.anunciante === F.anun) && (!F.comp || r.competicion === F.comp) &&
-    (!F.jor || String(r.jornada) === F.jor) && (!F.sop || r.soporte === F.sop));
+  const base = g1.filter(r => (!F.feed || r.feed === F.feed) && (!F.anun || r.anunciante === F.anun) && (!F.comp || r.competicion === F.comp) && (!F.sop || r.soporte === F.sop));
+  const jornadas = sortedValues(base.map(r => r.jornada));
+  const jor = F.jor === null ? String(jornadas.at(-1) ?? "") : F.jor;   // por defecto, la última jornada del cliente
+  const rows = base.filter(r => !jor || String(r.jornada) === jor);
   const p = F.pub, groups = {};
   for (const r of rows) {
     const k = [r.jornada, r.partido, r.feed, r.canal || ""].join("|");
@@ -75,13 +78,14 @@ export function renderClient(main, viewAs) {
   <div class="cl-grid">
     <section class="card span2" aria-labelledby="cp-h">
       <header class="card-h"><span class="tag blue">Por jornada</span><h3 id="cp-h">Control de presencia</h3>
-        ${canExport() ? `<button class="btn subtle" id="c-xlsx">Descargar Excel</button>` : ""}</header>
+        ${canExport() ? `<button class="btn" id="c-xlsx">Descargar Excel</button>` : ""}</header>
+      ${F.jor === null && jor ? `<p class="card-note">Mostrando la última jornada con datos (J${jor}). Elige «Todas» u otra jornada en el filtro.</p>` : ""}
       <div class="filters">
         ${sel("c-grp", "Ámbito", `<option value="NACIONAL" ${F.grp === "NACIONAL" ? "selected" : ""}>Nacional</option><option value="INTERNACIONAL" ${F.grp === "INTERNACIONAL" ? "selected" : ""}>Internacional</option>`)}
         ${sel("c-feed", "Feed", opts(sortedValues(g1.map(r => r.feed)), F.feed, "Todos"))}
         ${sel("c-anun", "Anunciante", opts(anunList, F.anun, "Todos"))}
         ${sel("c-comp", "Competición", opts(sortedValues(g1.map(r => r.competicion)), F.comp, "Todas"))}
-        ${sel("c-jor", "Jornada", opts(sortedValues(g1.map(r => r.jornada)), F.jor, "Todas"))}
+        ${sel("c-jor", "Jornada", opts(jornadas, jor, "Todas"))}
         ${sel("c-pub", "Público", opts(["16", "4"], F.pub))}
         ${sel("c-sop", "Soporte", opts(sortedValues(g1.map(r => r.soporte)), F.sop, "Todos"))}
       </div>
@@ -111,7 +115,8 @@ export function renderClient(main, viewAs) {
       </div>
     </aside>
     <section class="card span2" aria-labelledby="ca-h">
-      <header class="card-h"><span class="tag green">Acumulado</span><h3 id="ca-h">Control de presencia acumulada</h3></header>
+      <header class="card-h"><span class="tag green">Acumulado</span><h3 id="ca-h">Control de presencia acumulada</h3>
+        ${canExport() ? `<button class="btn" id="a-xlsx">Descargar Excel</button>` : ""}</header>
       <div class="filters">
         ${sel("a-grp", "Ámbito", `<option value="NACIONAL" ${F.accGrp === "NACIONAL" ? "selected" : ""}>Nacional</option><option value="INTERNACIONAL" ${F.accGrp === "INTERNACIONAL" ? "selected" : ""}>Internacional</option>`)}
         ${sel("a-anun", "Anunciante", opts(accAnunList, F.accAnun, "Todos"))}
@@ -136,13 +141,19 @@ export function renderClient(main, viewAs) {
   </div>`;
 
   const bind = (id, key, reset) => main.querySelector("#" + id).onchange = e => { F[key] = e.target.value; if (reset) reset(); rerender(); };
-  bind("c-grp", "grp", () => { F.feed = ""; F.anun = ""; F.sop = ""; });
-  [["c-feed", "feed"], ["c-anun", "anun"], ["c-comp", "comp"], ["c-jor", "jor"], ["c-pub", "pub"], ["c-sop", "sop"],
+  bind("c-grp", "grp", () => { F.feed = ""; F.anun = ""; F.sop = ""; F.jor = null; });
+  bind("c-anun", "anun", () => { F.jor = null; });
+  [["c-feed", "feed"], ["c-comp", "comp"], ["c-jor", "jor"], ["c-pub", "pub"], ["c-sop", "sop"],
     ["a-anun", "accAnun"], ["a-sop", "accSop"], ["a-desde", "desde"], ["a-hasta", "hasta"], ["a-pub", "accPub"]].forEach(([i, k]) => bind(i, k));
   bind("a-grp", "accGrp", () => { F.accAnun = ""; F.accSop = ""; });
   main.querySelector("#c-xlsx")?.addEventListener("click", () => {
     const cols = [["Feed", "feed"], ["Jornada", "jornada"], ["Partido", "partido"], ["Fecha", "fecha"], ["Canal", "canal"], ["Contratado (s)", "ctto"], ["Televisivo (s)", "tv"],
       ["Aud. hogar", "audH"], ["Aud. total", "audT"], ["GRPs hogar", "grpH"], ["GRPs totales", "grpT"], ["Cuota %", "cuota"]].map(([l, k]) => ({ l, k }));
-    exportXlsx("ControlPresencia_" + (F.anun || who).replace(/\W+/g, "_"), cols, G, (r, c) => r[c.k]);
+    exportXlsx("ControlPresencia_" + (F.anun || who).replace(/\W+/g, "_") + (jor ? "_J" + jor : ""), cols, G, (r, c) => r[c.k]);
+  });
+  main.querySelector("#a-xlsx")?.addEventListener("click", () => {
+    const cols = [["Jornada", "jornada"], ["Partidos", "np"], ["Contratado (s)", "ctto"], ["Televisivo (s)", "tv"], ["GRPs hogar", "grpH"], ["GRPs totales", "grpT"]].map(([l, k]) => ({ l, k }));
+    const data = AJ.map(g => ({ ...g, np: g.partidos.size }));
+    exportXlsx("Acumulado_" + (F.accAnun || who).replace(/\W+/g, "_"), cols, data, (r, c) => r[c.k]);
   });
 }

@@ -6,68 +6,81 @@ Estado: **prototipo funcional**. El cálculo está verificado contra la exportac
 
 ## Qué incluye
 
-- **Investigación** (uso interno): subida de Excel, pestañas Segundos, Audiencias, Goles, Log A., Log C., Equipos, Partidos, Públicos, Canales, Soportes, Analítica y Fórmulas. Todas las tablas tienen búsqueda, filtros, columnas ocultables, edición por fila y exportación a Excel.
-- **Validar jornada** e **In-Situ** (asistencia LED y estáticos).
-- **Vista cliente**: control de presencia por jornada, acumulado y control de tiempo; selector «Ver como» para ver lo mismo que un anunciante o un club.
-- **Fórmulas**: metodología en LaTeX dentro de la app y en [`docs/formulas.tex`](docs/formulas.tex) ([PDF](docs/formulas.pdf)).
+- **Investigación** (uso interno): «Cargar datos», pestañas Segundos, Audiencias, Goles, Log A., Log C., Equipos, Partidos, Públicos, Canales, Soportes, Analítica y Fórmulas. Todas las tablas tienen búsqueda, filtros, columnas ocultables, edición por fila (crear, modificar, eliminar) y **Descargar Excel** con lo que se está viendo (respeta los filtros).
+- **Analítica**: tarjetas de Valoración y GRPs (+16 y +4) y tiempo valorado que **se recalculan con los filtros** de la tabla. Columnas con la misma nomenclatura que Segundos: Ctto. TM, Emitido TM, Emitido TV.
+- **Cargar datos**:
+  - Postplays (varios a la vez) y Estáticos (un Excel por jornada; se acumulan, repetir una jornada la reemplaza).
+  - Audiencias España: consulta a SQL Server entre **fecha inicio y fecha fin**, con botón **Probar conexión**; o el Excel exportado de Kantar (hoja «Programas»), varios a la vez.
+  - Audiencias internacionales: Excel + **país**. Se guardan como referencia; la valoración usa solo España.
+- **Validar jornada** e **In-Situ**.
+- **Vista cliente**: por defecto muestra **la última jornada con datos del cliente**; descarga en Excel del control de presencia y del acumulado.
+- **Datos compartidos**: con el servidor, todo el equipo ve y edita los mismos datos (se guardan en el contenedor `api`).
+
+## Arquitectura
+
+```
+navegador ──► web (nginx, puerto 4444) ──► /         app (HTML + JS en módulos)
+                                       └─► /api/...  api (FastAPI, Python)
+                                                       ├─ SQL Server (pymssql, credenciales en .env)
+                                                       └─ SQLite en el volumen metrica_data (datos de la app)
+```
 
 ## Despliegue en Ubuntu con Docker (puerto 4444)
 
 Requisitos: Docker con el plugin Compose.
 
 ```bash
-# 1. Instalar Docker (si no está instalado)
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker $USER   # cierra sesión y vuelve a entrar para usar docker sin sudo
-
-# 2. Clonar y arrancar
 git clone https://github.com/fernandogomez0621/Metricas_Liga.git
 cd Metricas_Liga
+cp .env.example .env
+nano .env                       # pon la contraseña real de SQL Server en MSSQL_PASSWORD
 docker compose up -d --build
-
-# 3. Abrir el puerto si el firewall está activo
 sudo ufw allow 4444/tcp
 ```
 
-Abre `http://IP_DE_LA_MAQUINA:4444`.
+Abre `http://IP_DE_LA_MAQUINA:4444`. En «Cargar datos → Audiencias España → Probar conexión» se comprueba el acceso a SQL Server.
+
+**El archivo `.env` no se sube a GitHub** (está en `.gitignore`): créalo en cada máquina donde despliegues.
 
 Comandos útiles:
 
 ```bash
-docker compose ps                 # estado
-docker compose logs -f            # registros
+docker compose ps                          # estado (web y api)
+docker compose logs -f api                 # registros del servidor (errores de SQL, etc.)
 git pull && docker compose up -d --build   # actualizar a la última versión
-docker compose down               # parar
+docker compose down                        # parar (los datos se conservan en el volumen)
+docker compose cp api:/data/metrica.db ./copia_metrica.db   # copia de seguridad de los datos
 ```
 
-Sin Docker, para probar en local: `python3 -m http.server 4444 --directory app` y abre `http://localhost:4444`. Abrir `index.html` con doble clic no funciona porque los módulos JavaScript necesitan un servidor.
+Sin Docker, para probar solo la interfaz: `python3 -m http.server 4444 --directory app`. En ese modo no hay API: los datos se guardan en el navegador y la consulta a SQL Server no está disponible.
 
 ## Estructura
 
 ```
-app/                    Lo que sirve nginx
-  index.html
-  css/app.css
+app/                    Interfaz (la sirve nginx)
+  index.html, css/app.css
   js/
     app.js              Arranque, menú y navegación
-    store.js            Estado y persistencia (único módulo a cambiar para usar un servidor)
-    parsers.js          Lectura de postplays, estáticos y audiencias
+    store.js            Estado y guardado (servidor si existe; si no, navegador)
+    api.js              Llamadas a la API
+    parsers.js          Lectura de postplays, estáticos, Kantar (Excel y SQL) y tabla de Audiencias
     calc.js             Motor de valoración
     masters.js          Búsquedas en Canales, Soportes y Partidos; alias de nombres
-    table.js            Tabla reutilizable (filtros, orden, paginación, exportar)
-    upload.js           Ventana «Subir Excel»
+    table.js            Tabla reutilizable (filtros, orden, paginación, Excel)
+    upload.js           Ventana «Cargar datos»
     jornadas.js         Validar jornada e In-Situ
-    modals.js           Ventanas y formularios
-    exporter.js         Exportación a Excel
+    modals.js, exporter.js
     views/internal.js   Pestañas de Investigación
     views/client.js     Vista cliente
     views/formulas.js   Pestaña Fórmulas (LaTeX con KaTeX)
-  data/masters.json     Tablas de configuración: canales, soportes, públicos, equipos, partidos
-  data/demo.json        Jornada 1 de ejemplo
-  vendor/               SheetJS (lectura/escritura de Excel) y KaTeX, sin depender de internet
+  data/                 Configuración (canales, soportes, públicos, equipos, partidos) y jornada 1 de ejemplo
+  vendor/               SheetJS y KaTeX, sin depender de internet
+api/                    Servidor: main.py, requirements.txt, Dockerfile
 docs/formulas.tex       Metodología de cálculo (compila en Overleaf)
 tests/calc.test.mjs     Prueba del cálculo contra los totales de IKLAN
-Dockerfile, docker-compose.yml, nginx.conf
+Dockerfile              Imagen web (nginx)
+docker-compose.yml      Servicios web + api
+nginx.conf, .env.example
 ```
 
 ## Cálculo
@@ -92,13 +105,16 @@ npm test
 | Archivo | Se reconoce por |
 |---|---|
 | Postplay (nacional o internacional) | Nombre `AAMMDD.Local-Visitante_J<n>_<FEED>_TM_IK.xlsx`; columnas *Hired TV Time*, *Broad TM Time*, *Output Seconds LIVE* (se buscan por título); tablas *GOALS* y *MOMENTUMS* |
-| Estáticos | Columnas *Jornada, Partido, Equipo Local, Equipo Visitante, Feed, Soporte, Cliente, Anunciante, Tiempo en segundos* |
-| Audiencias | Formato de la tabla Audiencias: *Jornada, Partido, Canal, Tipo Canal, Público, Cuota Pant. %, AM % Hogar, Aud. Hogar* |
+| Estáticos | Columnas *Jornada, Partido, Equipo Local, Equipo Visitante, Feed, Soporte, Cliente, Anunciante, Tiempo en segundos*. Las filas vacías o con «PDTE» se saltan con aviso |
+| Kantar (Excel) | Hoja con *Título, Descripción (LOCAL-VISITANTE), Cadena, Fecha* y bloques *Ind. 4+* / *Ind. 16+* con *AM(000), AM%, Cuota*. Se usan los bloques «sin invitados». La jornada se toma del nombre (`_J12_`) o del calendario |
+| Kantar (SQL Server) | Consulta sobre las vistas EMISW, EMISWT y CADENA_NEW de `AUDIENCIAS_DB` (por defecto GECAIKLAN) |
+| Tabla Audiencias | *Jornada, Partido, Canal, Tipo Canal, Público, Cuota Pant. %, AM % Hogar, Aud. Hogar* |
 
-Pendiente: leer directamente el Excel original de Kantar (hace falta un ejemplo de ese archivo).
+Las audiencias se asignan a un partido del calendario (pestaña Partidos) por los nombres de local y visitante. Si un partido no está en el calendario, aparece un aviso: añádelo en la pestaña Partidos y vuelve a cargar.
 
 ## Limitaciones del prototipo
 
-- Los datos se guardan en el navegador de cada usuario (localStorage). Otra persona u otro navegador empieza con los datos de ejemplo. Para trabajar en equipo hace falta un backend con base de datos.
-- No hay inicio de sesión: usuarios y registros de acceso están simulados.
-- `data/demo.json` y `data/masters.json` contienen datos reales de la jornada 1. Si el repositorio es público, quedan visibles; conviene que sea privado o sustituir esos datos.
+- No hay inicio de sesión: usuarios y registros de acceso están simulados. Cualquiera que abra la página puede editar.
+- Si dos personas guardan a la vez, la segunda recibe un aviso para recargar y no pisa los cambios de la primera.
+- La consulta de audiencias España necesita que el usuario de SQL Server tenga lectura en LINKNUEVOOK (error 916 si no la tiene).
+- `data/demo.json` y `data/masters.json` contienen datos reales de la jornada 1. Si el repositorio es público, quedan visibles.

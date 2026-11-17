@@ -1,20 +1,31 @@
-// Exportación a Excel con SheetJS + capacidad "downloads" del visor.
+// Exportación a Excel con SheetJS.
+// - En un navegador normal (servidor propio): descarga directa con XLSX.writeFile.
+// - Dentro del visor de artefactos de Claude: usa la capacidad "downloads" del visor.
 import { caps } from "./bus.js";
 import { toast } from "./util.js";
 
-export const canExport = () => !!caps.downloads;
+const insideArtifactViewer = () => !!window.claude?.use;
+export const canExport = () => !!window.XLSX;
 
 /** cols: [{l, k}] · rows: objetos · val(row, col) → valor */
 export async function exportXlsx(name, cols, rows, val) {
-  if (!caps.downloads) return;
   const XLSX = window.XLSX;
+  if (!XLSX) return toast("No se pudo cargar el generador de Excel");
+  if (!rows.length) return toast("No hay filas para descargar con estos filtros");
   const data = rows.map(r => Object.fromEntries(cols.map(c => [c.l, val(r, c) ?? ""])));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "Datos");
-  const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const filename = `${name}_${stamp}.xlsx`;
+
+  if (!insideArtifactViewer()) {
+    XLSX.writeFile(wb, filename);
+    return toast(`Descargado ${filename} (${rows.length} filas)`);
+  }
+  if (!caps.downloads) return toast("La descarga no está disponible en esta vista");
   try {
-    await caps.downloads.save({ filename: `${name}_${stamp}.xlsx`, data: new Uint8Array(buf) });
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    await caps.downloads.save({ filename, data: new Uint8Array(buf) });
     toast("Excel guardado");
   } catch (e) {
     if (e && e.code === "declined") return;

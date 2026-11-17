@@ -1,8 +1,22 @@
 services:
-  metrica-liga:
+  web:
     build: .
     image: metrica-liga:latest
     container_name: metrica-liga
     ports:
       - "4444:80"   # http://<ip-de-la-maquina>:4444
+    depends_on:
+      - api
     restart: unless-stopped
+
+  api:
+    build: ./api
+    image: metrica-liga-api:latest
+    container_name: metrica-liga-api
+    env_file: .env          # credenciales de SQL Server (no se sube a GitHub)
+    volumes:
+      - metrica_data:/data  # datos compartidos de la app (SQLite)
+    restart: unless-stopped
+
+volumes:
+  metrica_data:

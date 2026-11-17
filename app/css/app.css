@@ -111,6 +111,10 @@ select, input[type=text], input[type=number], input[type=search], textarea { bac
 .kpi.accent { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .kpi.accent .l, .kpi.accent .h { color: color-mix(in srgb, var(--accent-ink) 80%, transparent); }
 .kpi.warn .v { color: var(--amber); }
+.kpi.multi .pairs { display: flex; flex-wrap: wrap; gap: 4px 22px; margin-top: 2px; }
+.kpi.multi .pairs > div { display: grid; }
+.kpi.multi .pairs .v { font-size: 19px; }
+.filter-note { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
 
 /* ---------- tabla */
 .tbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
@@ -190,6 +194,20 @@ table.grid { border-collapse: separate; border-spacing: 0; width: 100%; font-siz
 .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .drop:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .drop .files { font-family: var(--f-num); font-size: 11.5px; color: var(--ink-2); overflow-wrap: anywhere; }
+.load-sec { display: grid; gap: 10px; }
+.load-sec + .load-sec { border-top: 1px solid var(--line); padding-top: 14px; }
+.load-sec h3 { margin: 0; font-size: 15px; font-weight: 800; }
+.drops.one { grid-template-columns: minmax(0, 1fr); }
+.aud-tab { display: grid; gap: 12px; }
+.db-box { display: grid; gap: 10px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; }
+.db-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; }
+.db-row .field { min-width: 150px; }
+.db-row .caption { flex: 1; min-width: 220px; }
+.db-status { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.db-status.ok { color: var(--green); } .db-status.warn { color: var(--amber); } .db-status.bad { color: var(--neg); }
+.or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12.5px; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+input[type=date] { background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-sm); padding: 6px 10px; }
 .report { display: grid; gap: 8px; }
 .report-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .report-head span { color: var(--muted); }
@@ -226,6 +244,7 @@ table.grid { border-collapse: separate; border-spacing: 0; width: 100%; font-siz
 .tag.green { background: var(--green-soft); color: var(--green); } .tag.amber { background: var(--amber-soft); color: var(--amber); }
 .card .filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 12px 18px 14px; background: var(--surface-2); border-top: 1px solid var(--line); }
 .card .filters select { width: 100%; }
+.card-note { margin: -6px 18px 10px; font-size: 12.5px; color: var(--accent); font-weight: 600; }
 .card-foot { margin: 0; padding: 12px 18px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
 .timecard { display: grid; gap: 10px; padding: 4px 18px 18px; }
 .timecard .big { font-family: var(--f-num); font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }

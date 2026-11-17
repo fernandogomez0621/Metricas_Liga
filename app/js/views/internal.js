@@ -23,6 +23,9 @@ const chipFeed = v => v ? `<span class="chip ${v === "NACIONAL" ? "nac" : "int"}
 const chipTipo = v => v ? `<span class="chip ${v === "Momentum" ? "mom" : v === "Estático" ? "est" : "seg"}">${esc(v)}</span>` : "";
 const head = (h, p, actions = "") => `<div class="pagehead"><div><h2>${h}</h2>${p ? `<p>${p}</p>` : ""}</div>${actions ? `<div class="actions">${actions}</div>` : ""}</div>`;
 const kpis = items => `<div class="kpis">${items.map(([l, v, h, cls]) => `<div class="kpi ${cls || ""}"><span class="l">${l}</span><span class="v">${v}</span>${h ? `<span class="h">${h}</span>` : ""}</div>`).join("")}</div>`;
+/** Tarjeta con varias cifras: [[etiqueta, valor], ...] */
+const kpiMulti = (title, pairs, cls = "") => `<div class="kpi multi ${cls}"><span class="l">${title}</span><div class="pairs">${pairs.map(([l, v]) => `<div><span class="v">${v}</span><span class="h">${l}</span></div>`).join("")}</div></div>`;
+const filterNote = info => info.filtered ? `<p class="filter-note">Totales de las ${nf0.format(info.rows)} filas filtradas (de ${nf0.format(info.total)}).</p>` : `<p class="filter-note">Totales de todas las filas. Al filtrar la tabla, las tarjetas se recalculan.</p>`;
 
 function recordForm(r) {
   const P = S.masters.partidos.filter(p => p.jornada === (r.jornada || 1)).map(p => p.partido);
@@ -33,7 +36,7 @@ function recordForm(r) {
     { k: "soporte", l: "Soporte", type: "select", opts: uniq([r.soporte, ...S.masters.soportes.map(s => s.soporte)].filter(Boolean)) },
     { k: "tipoEntrada", l: "Tipo de entrada", type: "select", opts: ["Segundos", "Momentum", "Estático"] },
     { k: "tipoMomentum", l: "Tipo (momentum)" }, { k: "minuto", l: "Minuto" },
-    { k: "ctto", l: "Ctto. TM (s)", type: "number" }, { k: "emitidoTV", l: "Emitido TV (s)", type: "number" }, { k: "emitidoTM", l: "Emitido TM (s)", type: "number" },
+    { k: "ctto", l: "Ctto. TM (s)", type: "number" }, { k: "emitidoTM", l: "Emitido TM (s)", type: "number" }, { k: "emitidoTV", l: "Emitido TV (s)", type: "number" },
     { k: "comMP", l: "Comentario interno", type: "textarea", wide: true }, { k: "comCliente", l: "Comentario para el cliente", type: "textarea", wide: true },
   ];
   const isNew = !r.id;
@@ -54,40 +57,47 @@ function crud(list, fields, title) {
 
 const VIEWS = {
   segundos(main, T) {
-    const nac = S.records.filter(r => r.feed === "NACIONAL");
-    main.innerHTML = head("Segundos", "Cada fila es una presencia: vallas, momentums y estáticos. Pulsa una fila para modificarla o eliminarla.") +
-      kpis([["Registros", nf0.format(S.records.length), `${uniq(S.records.map(r => r.partido)).length} partidos`],
-        ["Contratado (vallas)", mmss(S.records.reduce((a, r) => a + (r.ctto || 0), 0)), "Ctto. TM"],
-        ["Emitido TV", mmss(S.records.filter(r => r.tipoEntrada === "Segundos").reduce((a, r) => a + (r.emitidoTV || 0), 0)), "Vallas, todos los feeds"],
-        ["Feed nacional", nf0.format(nac.length), "registros"]]);
+    main.innerHTML = head("Segundos", "Cada fila es una presencia: vallas, momentums y estáticos. Pulsa una fila para modificarla o eliminarla.") + `<div id="seg-kpis"></div>`;
     main.appendChild(T);
+    const box = main.querySelector("#seg-kpis");
     const inS = r => S.insitu[r.jornada + "|" + r.partido] || {};
+    const sum = (rows, k) => rows.reduce((a, r) => a + (r[k] || 0), 0);
     table(T, { id: "seg", file: "Segundos", totals: true, onRow: recordForm,
+      onRows: (rows, info) => {
+        const vallas = rows.filter(r => r.tipoEntrada === "Segundos");
+        box.innerHTML = kpis([["Registros", nf0.format(rows.length), `${uniq(rows.map(r => r.partido)).length} partidos`],
+          ["Ctto. TM", mmss(sum(rows, "ctto")), "Contratado"],
+          ["Emitido TM", mmss(sum(vallas, "emitidoTM")), "Vallas"],
+          ["Emitido TV", mmss(sum(vallas, "emitidoTV")), "Vallas"]]) + filterNote({ ...info, rows: rows.length });
+      },
       add: () => recordForm({ jornada: 1, tipoEntrada: "Segundos", feed: "NACIONAL", soporte: "UTV" }), rows: () => S.records, cols: [
         { k: "feed", l: "Feed", html: chipFeed }, { k: "anunciante", l: "Anunciante" }, { k: "pq", l: "PQ" }, { k: "competicion", l: "Competición", hide: true },
         { k: "jornada", l: "Jornada", num: true }, { k: "partido", l: "Partido" }, { k: "local", l: "Local", hide: true }, { k: "visitante", l: "Visitante", hide: true },
         { k: "soporte", l: "Soporte" }, { k: "sub1", l: "SubSoporte 1", hide: true }, { k: "sub2", l: "SubSoporte 2", hide: true },
         { k: "tipoEntrada", l: "Tipo de entrada", html: chipTipo }, { k: "tipoMomentum", l: "Tipo" }, { k: "minuto", l: "Minuto", hide: true },
         { k: "ctto", l: "Ctto. TM", num: true, sum: true, fmt: int, nofilter: true },
-        { k: "emitidoTV", l: "Emitido TV", num: true, sum: true, fmt: int, nofilter: true },
         { k: "emitidoTM", l: "Emitido TM", num: true, sum: true, fmt: int, nofilter: true },
+        { k: "emitidoTV", l: "Emitido TV", num: true, sum: true, fmt: int, nofilter: true },
         { k: "led", l: "Insitu LED", num: true, v: r => inS(r).led, fmt: int, hide: true, nofilter: true },
         { k: "est", l: "Insitu Estáticos", num: true, v: r => inS(r).est, fmt: int, hide: true, nofilter: true },
         { k: "comMP", l: "Comentarios MP", hide: true }, { k: "comCliente", l: "Comentarios cliente", hide: true }, { k: "archivo", l: "Archivo", hide: true }] });
   },
   audiencias(main, T) {
-    main.innerHTML = head("Audiencias", "Datos de Kantar por partido, canal y público. La audiencia total aplica el factor del canal: 3,2 en pago y 1,22 en abierto.");
+    main.innerHTML = head("Audiencias", "Datos de Kantar por partido, canal y público. España se usa para valorar; las internacionales se guardan por país. La audiencia total aplica el factor del canal: 3,2 en pago y 1,22 en abierto.");
     main.appendChild(T);
-    const fields = [{ k: "jornada", l: "Jornada", type: "number" }, { k: "partido", l: "Partido" }, { k: "canal", l: "Canal", type: "select", opts: S.masters.canales.map(c => c.canal).filter(Boolean) },
+    const fields = [{ k: "ambito", l: "Ámbito / país" }, { k: "jornada", l: "Jornada", type: "number" }, { k: "partido", l: "Partido" }, { k: "canal", l: "Canal", type: "select", opts: S.masters.canales.map(c => c.canal).filter(Boolean) },
       { k: "tipoCanal", l: "Tipo canal" }, { k: "publico", l: "Público", type: "select", opts: [16, 4] }, { k: "cuota", l: "Cuota pant. %", type: "number" },
       { k: "amHogar", l: "AM % hogar", type: "number" }, { k: "audHogar", l: "Aud. hogar", type: "number" }];
     table(T, { id: "aud", file: "Audiencias", ...crud(() => S.audiencias, fields, "audiencia"), rows: () => S.audiencias, cols: [
+      { k: "ambito", l: "Ámbito", v: a => a.ambito || "ESPAÑA", html: v => `<span class="chip ${v === "ESPAÑA" ? "nac" : "int"}">${esc(v)}</span>` },
+      { k: "fecha", l: "Fecha", hide: true }, { k: "origen", l: "Origen", hide: true },
       { k: "competicion", l: "Competición" }, { k: "jornada", l: "Jornada", num: true }, { k: "partido", l: "Partido" }, { k: "local", l: "Local" }, { k: "visitante", l: "Visitante" },
       { k: "canal", l: "Canal" }, { k: "tipoCanal", l: "Tipo canal" }, { k: "publico", l: "Público", num: true },
       { k: "cuota", l: "Cuota pant. %", num: true, fmt: dec3, nofilter: true }, { k: "amHogar", l: "AM % hogar", num: true, fmt: dec3, nofilter: true },
       { k: "audHogar", l: "Aud. hogar", num: true, fmt: int, nofilter: true },
       { k: "amT", l: "AM % total", num: true, v: a => { const c = canalOf(a.canal); return c ? round3(a.amHogar * c.fTotal) : null; }, fmt: dec3, nofilter: true },
-      { k: "audT", l: "Aud. total", num: true, v: a => { const c = canalOf(a.canal); return c ? a.audHogar * c.fTotal : null; }, fmt: int, nofilter: true }] });
+      { k: "audT", l: "Aud. total", num: true, v: a => { const c = canalOf(a.canal); return c ? a.audHogar * c.fTotal : null; }, fmt: int, nofilter: true },
+      { k: "archivo", l: "Archivo", hide: true }] });
   },
   goles(main, T) {
     main.innerHTML = head("Goles", "Goles y penaltis patrocinados, leídos de la tabla GOALS de cada postplay."); main.appendChild(T);
@@ -146,25 +156,38 @@ const VIEWS = {
   },
   analitica(main, T) {
     const A = analitica();
-    const tot = p => A.reduce((a, r) => a + (r["val" + p] || 0), 0);
-    const sinAud = uniq(A.filter(r => r.feed === "NACIONAL" && !r.canal).map(r => "J" + r.jornada + " " + r.partido));
-    main.innerHTML = head("Analítica", "GRPs = AM % total × segundos ÷ 20 · Valoración = GRPs × coste GRP del canal × coeficiente del soporte.",
-      `<label class="inline-select" for="emit">Valorar con <select id="emit"><option value="TV" ${S.config.emitido === "TV" ? "selected" : ""}>Emitido TV</option><option value="TM" ${S.config.emitido === "TM" ? "selected" : ""}>Emitido TM</option></select></label>`) +
-      kpis([["Valoración +16", eur(tot(16)), `${nf0.format(A.filter(r => r.val16 != null).length)} filas valoradas`, "accent"],
-        ["Valoración +4", eur(tot(4)), "Público de 4 años o más"],
-        ["Segundos valorados", mmss(A.filter(r => r.val16 != null).reduce((a, r) => a + (r.sg || 0), 0)), "Solo feed nacional"],
-        ["Partidos sin audiencia", String(sinAud.length), sinAud.length ? esc(sinAud.slice(0, 3).join(" · ")) + (sinAud.length > 3 ? "…" : "") : "Todos tienen Kantar", sinAud.length ? "warn" : ""]]);
+    const em = S.config.emitido;
+    main.innerHTML = head("Analítica", `GRPs = AM % total × segundos ÷ 20 · Valoración = GRPs × coste GRP del canal × coeficiente del soporte. Se valora con <b>Emitido ${em}</b>.`,
+      `<label class="inline-select" for="emit">Valorar con <select id="emit"><option value="TV" ${em === "TV" ? "selected" : ""}>Emitido TV</option><option value="TM" ${em === "TM" ? "selected" : ""}>Emitido TM</option></select></label>`) +
+      `<div id="ana-kpis"></div>`;
     main.appendChild(T);
+    const box = main.querySelector("#ana-kpis");
     main.querySelector("#emit").onchange = e => { S.config.emitido = e.target.value; logChange("config", "Valorar con Emitido " + e.target.value); persist(); rerender(); toast("Recalculado con Emitido " + e.target.value); };
     const g3 = v => isNum(v) ? nf3.format(v) : "";
-    table(T, { id: "ana", file: "Analitica", totals: true, rows: () => A, cols: [
+    const sum = (rows, k) => rows.reduce((a, r) => a + (isNum(r[k]) ? r[k] : 0), 0);
+    table(T, { id: "ana", file: "Analitica", totals: true, rows: () => A,
+      onRows: (rows, info) => {
+        const val = rows.filter(r => r.val16 != null);
+        // un partido emitido en dos canales repite la presencia: los segundos se cuentan una vez
+        const once = val.filter((r, i, arr) => arr.findIndex(x => x.id === r.id) === i);
+        const sinAud = uniq(rows.filter(r => r.feed === "NACIONAL" && !r.canal).map(r => "J" + r.jornada + " " + r.partido));
+        box.innerHTML = `<div class="kpis">
+          ${kpiMulti("Público +16", [["Valoración", eur(sum(rows, "val16"))], ["GRPs", nf3.format(sum(rows, "grp16"))]], "accent")}
+          ${kpiMulti("Público +4", [["Valoración", eur(sum(rows, "val4"))], ["GRPs", nf3.format(sum(rows, "grp4"))]])}
+          ${kpiMulti("Tiempo valorado", [[`Emitido ${em}`, mmss(sum(once, "sg"))], ["Ctto. TM", mmss(sum(once, "ctto"))]])}
+          ${kpiMulti("Filas", [["Valoradas", nf0.format(val.length)], ["Partidos sin audiencia", String(sinAud.length)]], sinAud.length ? "warn" : "")}
+        </div>` + filterNote({ ...info, rows: rows.length });
+      },
+      cols: [
       { k: "feed", l: "Feed", html: chipFeed }, { k: "anunciante", l: "Anunciante" }, { k: "pq", l: "PQ" }, { k: "competicion", l: "Competición", hide: true },
       { k: "jornada", l: "Jornada", num: true }, { k: "fecha", l: "Fecha", hide: true }, { k: "partido", l: "Partido" }, { k: "local", l: "Local", hide: true }, { k: "visitante", l: "Visitante", hide: true },
       { k: "soporte", l: "Soporte" }, { k: "canal", l: "Canal" }, { k: "tipoEntrada", l: "Tipo de entrada", html: chipTipo }, { k: "tipoMomentum", l: "Tipo momentum", hide: true },
-      { k: "sg", l: "Sg emitidos", num: true, sum: true, fmt: int, nofilter: true }, { k: "ctto", l: "Sg teóricos", num: true, sum: true, fmt: int, nofilter: true },
+      { k: "ctto", l: "Ctto. TM", num: true, sum: true, fmt: int, nofilter: true },
+      { k: "emitidoTM", l: "Emitido TM", num: true, sum: true, fmt: int, nofilter: true },
+      { k: "emitidoTV", l: "Emitido TV", num: true, sum: true, fmt: int, nofilter: true },
       { k: "amT16", l: "AM % total +16", num: true, fmt: dec3, nofilter: true, hide: true }, { k: "amT4", l: "AM % total +4", num: true, fmt: dec3, nofilter: true, hide: true },
       { k: "audT16", l: "Aud. total +16", num: true, fmt: int, nofilter: true, hide: true }, { k: "audT4", l: "Aud. total +4", num: true, fmt: int, nofilter: true, hide: true },
-      { k: "grp16", l: "GRPs +16", num: true, sum: true, fmt: g3, nofilter: true }, { k: "grp4", l: "GRPs +4", num: true, sum: true, fmt: g3, nofilter: true, hide: true },
+      { k: "grp16", l: "GRPs +16", num: true, sum: true, fmt: g3, nofilter: true }, { k: "grp4", l: "GRPs +4", num: true, sum: true, fmt: g3, nofilter: true },
       { k: "costeN", l: "Coste canal N.", num: true, fmt: int, nofilter: true, hide: true }, { k: "coef", l: "Coef. tamaño", num: true, nofilter: true, hide: true },
       { k: "val16", l: "Valoración € +16", num: true, sum: true, fmt: eur, nofilter: true }, { k: "val4", l: "Valoración € +4", num: true, sum: true, fmt: eur, nofilter: true }] });
   },

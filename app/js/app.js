@@ -1,5 +1,5 @@
 // Arranque y marco de la aplicación: menú lateral, barra superior, pestañas y navegación.
-import { S, initStore, persist, resetDemo, resetEmpty, logAccess } from "./store.js";
+import { S, initStore, persist, resetDemo, resetEmpty, logAccess, storeMode } from "./store.js";
 import { esc, nf0, toast } from "./util.js";
 import { setRender, caps } from "./bus.js";
 import { modal, armDelete } from "./modals.js";
@@ -34,8 +34,11 @@ setRender(render);
 
 function optionsModal() {
   const m = modal({ title: "Opciones del prototipo", body: `
-    <p>Este prototipo guarda los datos solo en este navegador. Otra persona que abra el enlace empieza con los datos de ejemplo de la jornada 1.</p>
+    <p>${storeMode() === "server"
+      ? "Los datos se guardan en el servidor y los comparte todo el equipo: lo que cambies aquí lo verán los demás al recargar."
+      : "Sin servidor: los datos se guardan solo en este navegador. Otra persona empieza con los datos de ejemplo de la jornada 1."}</p>
     <div class="row-actions"><button class="btn" id="o-demo">Restablecer datos de ejemplo</button><button class="btn danger" id="o-empty">Vaciar todo</button></div>
+    ${storeMode() === "server" ? `<p class="caption">«Restablecer» y «Vaciar» afectan a los datos de todo el equipo.</p>` : ""}
     <div class="formula"><b>Cómo se valora</b><span>AM % total = AM % hogar × factor del canal (3 decimales)</span><span>GRPs = AM % total × segundos ÷ 20</span>
       <span>Valoración = GRPs × coste GRP del canal × coeficiente de tamaño del soporte</span><span>Solo se valora el feed nacional. Si un partido se emite en dos canales, se valora en ambos.</span></div>` });
   m.root.querySelector("#o-demo").onclick = () => { resetDemo(); m.close(); render(); toast("Datos de ejemplo cargados"); };

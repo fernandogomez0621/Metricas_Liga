@@ -8,7 +8,8 @@ const icon = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/><
 
 /**
  * cfg = { id, rows(), cols:[{k,l,num,sum,hide,nofilter,fmt(v,r),html(v,r),v(r)}],
- *         onRow(row), add(), totals, file, empty }
+ *         onRow(row), add(), totals, file, empty,
+ *         onRows(rows) → se llama tras cada filtrado (para tarjetas de resumen que siguen a los filtros) }
  */
 export function table(el, cfg) {
   const st = state[cfg.id] ||= { q: "", f: {}, sort: null, page: 0, size: 25, hidden: new Set(cfg.cols.filter(c => c.hide).map(c => c.k)), open: false };
@@ -43,7 +44,7 @@ export function table(el, cfg) {
     <div class="colpick"><button class="btn" data-act="cols" aria-expanded="${st.open}">${icon("M4 6h16M4 12h16M4 18h16")}Columnas</button>
       ${st.open ? `<div class="colpick-panel">${cfg.cols.map(c => `<label><input type="checkbox" data-col="${c.k}" ${st.hidden.has(c.k) ? "" : "checked"}>${esc(c.l)}</label>`).join("")}</div>` : ""}</div>
     ${cfg.add ? `<button class="btn" data-act="add">${icon("M12 5v14M5 12h14")}Añadir</button>` : ""}
-    ${canExport() ? `<button class="btn" data-act="xlsx">${icon("M12 4v12m0 0l-5-5m5 5l5-5M4 20h16")}Exportar Excel</button>` : ""}
+    ${canExport() ? `<button class="btn" data-act="xlsx">${icon("M12 4v12m0 0l-5-5m5 5l5-5M4 20h16")}Descargar Excel</button>` : ""}
   </div>
   <div class="tscroll"><table class="grid">
     <thead><tr>${cols.map(c => `<th class="${c.num ? "num" : ""}" data-sort="${c.k}" aria-sort="${st.sort && st.sort.k === c.k ? (st.sort.d > 0 ? "ascending" : "descending") : "none"}">${esc(c.l)}<span class="s">${st.sort && st.sort.k === c.k ? (st.sort.d > 0 ? "↑" : "↓") : ""}</span></th>`).join("")}</tr>
@@ -53,7 +54,7 @@ export function table(el, cfg) {
       return `<th><select data-f="${c.k}" aria-label="Filtrar ${esc(c.l)}" class="${st.f[c.k] ? "on" : ""}"><option value="">Todos</option>${d.map(v => `<option ${st.f[c.k] === v ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></th>`;
     }).join("")}</tr></thead>
     <tbody>${view.length ? view.map((r, i) => `<tr class="${cfg.onRow ? "click" : ""}" data-i="${st.page * size + i}">${cols.map(c => `<td class="${c.num ? "num" : ""}">${c.html ? c.html(val(r, c), r) : esc(txt(r, c))}</td>`).join("")}</tr>`).join("")
-      : `<tr><td class="empty" colspan="${cols.length}">${esc(cfg.empty || "Sin registros. Sube los Excel de la jornada con «Subir Excel».")}</td></tr>`}</tbody>
+      : `<tr><td class="empty" colspan="${cols.length}">${esc(cfg.empty || "Sin registros. Carga los datos de la jornada con «Cargar datos».")}</td></tr>`}</tbody>
     ${sums && rows.length ? `<tfoot><tr>${cols.map((c, i) => `<td class="${c.num ? "num" : ""}">${i === 0 ? "Total" : (c.sum ? esc(c.fmt ? c.fmt(sums[c.k]) : int(sums[c.k])) : "")}</td>`).join("")}</tr></tfoot>` : ""}
   </table></div>
   <div class="tfoot">
@@ -78,6 +79,7 @@ export function table(el, cfg) {
     const go = e => { e.preventDefault(); cfg.onRow(rows[+tr.dataset.i]); };
     tr.onclick = go; tr.oncontextmenu = go;
   });
+  if (cfg.onRows) cfg.onRows(rows, { filtered: rows.length !== all.length, total: all.length });
 }
 
 function pager(p, n) {

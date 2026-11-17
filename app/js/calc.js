@@ -21,6 +21,7 @@ export const secondsUsed = r =>
 function audienceIndex() {
   const ix = {};
   for (const a of S.audiencias) {
+    if (a.ambito && a.ambito !== "ESPAÑA") continue;   // las audiencias internacionales no entran en la valoración
     const k = a.jornada + "|" + a.partido;
     ((ix[k] ||= {})[a.canal] ||= {})[a.publico] = a;
   }
