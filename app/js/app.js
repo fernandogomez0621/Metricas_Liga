@@ -7,6 +7,7 @@ import { uploadModal } from "./upload.js";
 import { validarModal, insituModal } from "./jornadas.js";
 import { TABS, tabCounts, renderInternal } from "./views/internal.js";
 import { renderClient, viewAsOptions, resetClientFilters } from "./views/client.js";
+import { renderArchivos } from "./views/archivos.js";
 import { analitica } from "./calc.js";
 
 const ui = { mode: "int", tab: "segundos", viewAs: "" };
@@ -14,11 +15,14 @@ const $ = s => document.querySelector(s);
 
 function render() {
   document.querySelectorAll("[data-mode]").forEach(b => b.setAttribute("aria-current", b.dataset.mode === ui.mode ? "page" : "false"));
-  $("#int-actions").hidden = ui.mode !== "int";
+  $("#int-actions").hidden = ui.mode === "cli";
   $("#cli-actions").hidden = ui.mode !== "cli";
-  $("#page-title").textContent = ui.mode === "int" ? "Investigación publicitaria" : "Vista cliente";
+  $("#page-title").textContent = { int: "Investigación publicitaria", files: "Manejo de archivos", cli: "Vista cliente" }[ui.mode];
   const tabs = $("#tablist");
-  if (ui.mode === "int") {
+  if (ui.mode === "files") {
+    tabs.hidden = true;
+    renderArchivos($("#main"));
+  } else if (ui.mode === "int") {
     const n = tabCounts();
     tabs.hidden = false;
     tabs.innerHTML = TABS.map(([k, l]) => `<button class="tab" role="tab" aria-selected="${ui.tab === k}" data-tab="${k}">${l}${n[k] != null ? `<span class="n">${nf0.format(n[k])}</span>` : ""}</button>`).join("");
@@ -48,6 +52,7 @@ function optionsModal() {
 function wire() {
   document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => {
     ui.mode = b.dataset.mode;
+    try { location.hash = ui.mode === "files" ? "archivos" : ui.mode === "int" ? ui.tab : ""; } catch (e) { }
     if (ui.mode === "cli") { logAccess(ui.viewAs ? ui.viewAs.slice(3) : "Vista previa"); persist(); }
     render();
   });
@@ -62,7 +67,7 @@ async function start() {
   wire();
   try { await initStore(); }
   catch (e) { $("#main").innerHTML = `<div class="notice">No se pudieron cargar los datos base (${esc(e.message)}). Recarga la página.</div>`; return; }
-  try { const h = location.hash.slice(1); if (TABS.some(t => t[0] === h)) ui.tab = h; } catch (e) { }
+  try { const h = location.hash.slice(1); if (TABS.some(t => t[0] === h)) ui.tab = h; if (h === "archivos") ui.mode = "files"; } catch (e) { }
   render();
   try { caps.downloads = window.claude?.use ? await window.claude.use("downloads") : null; } catch (e) { caps.downloads = null; }
   if (caps.downloads) render();

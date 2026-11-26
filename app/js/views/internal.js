@@ -64,11 +64,13 @@ const VIEWS = {
     const sum = (rows, k) => rows.reduce((a, r) => a + (r[k] || 0), 0);
     table(T, { id: "seg", file: "Segundos", totals: true, onRow: recordForm,
       onRows: (rows, info) => {
-        const vallas = rows.filter(r => r.tipoEntrada === "Segundos");
+        // suma de todas las filas filtradas: vallas, momentums y estáticos (igual que el total de la tabla)
+        const tipos = uniq(rows.map(r => r.tipoEntrada)).filter(Boolean);
+        const hint = tipos.length === 1 ? tipos[0] : "Vallas, momentums y estáticos";
         box.innerHTML = kpis([["Registros", nf0.format(rows.length), `${uniq(rows.map(r => r.partido)).length} partidos`],
-          ["Ctto. TM", mmss(sum(rows, "ctto")), "Contratado"],
-          ["Emitido TM", mmss(sum(vallas, "emitidoTM")), "Vallas"],
-          ["Emitido TV", mmss(sum(vallas, "emitidoTV")), "Vallas"]]) + filterNote({ ...info, rows: rows.length });
+          ["Ctto. TM", mmss(sum(rows, "ctto")), `Contratado · ${nf0.format(sum(rows, "ctto"))} s`],
+          ["Emitido TM", mmss(sum(rows, "emitidoTM")), `${hint} · ${nf0.format(sum(rows, "emitidoTM"))} s`],
+          ["Emitido TV", mmss(sum(rows, "emitidoTV")), `${hint} · ${nf0.format(sum(rows, "emitidoTV"))} s`]]) + filterNote({ ...info, rows: rows.length });
       },
       add: () => recordForm({ jornada: 1, tipoEntrada: "Segundos", feed: "NACIONAL", soporte: "UTV" }), rows: () => S.records, cols: [
         { k: "feed", l: "Feed", html: chipFeed }, { k: "anunciante", l: "Anunciante" }, { k: "pq", l: "PQ" }, { k: "competicion", l: "Competición", hide: true },

@@ -255,6 +255,20 @@ input[type=date] { background: var(--surface); border: 1px solid var(--line-stro
 .bars i.tv { background: var(--accent); }
 .delta { font-size: 13px; color: var(--muted); }
 
+/* ---------- archivos */
+.btn.sm { padding: 5px 10px; font-size: 12.5px; box-shadow: none; }
+.grid tbody tr.sel td { background: var(--accent-soft); }
+.grid tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.grid td.file { font-family: var(--f-num); font-size: 12px; white-space: normal; overflow-wrap: anywhere; min-width: 220px; }
+.grid td.muted { color: var(--muted); white-space: normal; }
+.miss { font-size: 11px; font-weight: 700; color: var(--amber); background: var(--amber-soft); border-radius: 999px; padding: 1px 7px; margin-left: 4px; white-space: nowrap; }
+.del-list { display: grid; gap: 6px; }
+.del-list label { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); cursor: pointer; }
+.del-list label.off { opacity: .5; cursor: default; }
+.del-list label b { font-family: var(--f-num); }
+.del-list > span { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+main > .card + .card, #arch-detail { display: grid; gap: 16px; }
+
 /* ---------- fórmulas */
 .tag.violet { background: var(--violet-soft); color: var(--violet); }
 .formula-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }

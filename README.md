@@ -12,6 +12,7 @@ Estado: **prototipo funcional**. El cálculo está verificado contra la exportac
   - Postplays (varios a la vez) y Estáticos (un Excel por jornada; se acumulan, repetir una jornada la reemplaza).
   - Audiencias España: consulta a SQL Server entre **fecha inicio y fecha fin**, con botón **Probar conexión**; o el Excel exportado de Kantar (hoja «Programas»), varios a la vez.
   - Audiencias internacionales: Excel + **país**. Se guardan como referencia; la valoración usa solo España.
+- **Archivos** (barra lateral): por jornada, qué postplays (partido y feed), estáticos, audiencias y goles hay cargados, de qué archivo vienen y cuándo se cargaron; qué partidos del calendario faltan. Permite **eliminar un archivo** o **eliminar una jornada** entera eligiendo qué tipos de datos borrar.
 - **Validar jornada** e **In-Situ**.
 - **Vista cliente**: por defecto muestra **la última jornada con datos del cliente**; descarga en Excel del control de presencia y del acumulado.
 - **Datos compartidos**: con el servidor, todo el equipo ve y edita los mismos datos (se guardan en el contenedor `api`).
